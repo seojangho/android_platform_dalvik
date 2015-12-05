@@ -4411,7 +4411,7 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
         }
 #ifdef WITH_TAINT_TRACKING
         if (tainted) {
-            ALOGW("TaintedCall: %s -> %s\n", curMethod->name, methodToCall->name);
+            ALOGW("TaintedCall: (%d) %s -> %s\n", self->threadId, curMethod->name, methodToCall->name);
         }
 #endif
     }
