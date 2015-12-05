@@ -4271,7 +4271,7 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
         int i;
 #ifdef WITH_TAINT_TRACKING
         bool nativeTarget = dvmIsNativeMethod(methodToCall);
-        bool tainted = false;
+        u4 taintTag = TAINT_CLEAR;
 #endif
 
         /*
@@ -4293,9 +4293,7 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             	/* copy the taint tags (vsrc1 is the count) */
             	for (i = 0; i < vsrc1; i++) {
             		outs[vsrc1+1+i] = GET_REGISTER_TAINT(vdst+i);
-                        if (GET_REGISTER_TAINT(vdst+i) != TAINT_CLEAR) {
-                            tainted = true;
-                        }
+                        taintTag |= outs[vsrc1+1+i];
             	}
             } else {
             	int slot = 0;
@@ -4303,9 +4301,7 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             		slot = i << 1;
             		outs[slot] = GET_REGISTER(vdst+i);
             		outs[slot+1] = GET_REGISTER_TAINT(vdst+i);
-                        if (GET_REGISTER_TAINT(vdst+i) != TAINT_CLEAR) {
-                            tainted = true;
-                        }
+                        taintTag |= outs[slot+1];
             	}
             	/* clear native hack (vsrc1 is the count)*/
             	outs[vsrc1<<1] = TAINT_CLEAR;
@@ -4341,23 +4337,23 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             	case 5:
             		outs[4] = GET_REGISTER(vsrc1 & 0x0f);
             		outs[count+5] = GET_REGISTER_TAINT(vsrc1 & 0x0f);
-                        if (outs[count+5] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[count+5];
             	case 4:
             		outs[3] = GET_REGISTER(vdst >> 12);
             		outs[count+4] = GET_REGISTER_TAINT(vdst >> 12);
-                        if (outs[count+4] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[count+4];
             	case 3:
             		outs[2] = GET_REGISTER((vdst & 0x0f00) >> 8);
             		outs[count+3] = GET_REGISTER_TAINT((vdst & 0x0f00) >> 8);
-                        if (outs[count+3] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[count+3];
             	case 2:
             		outs[1] = GET_REGISTER((vdst & 0x00f0) >> 4);
             		outs[count+2] = GET_REGISTER_TAINT((vdst & 0x00f0) >> 4);
-                        if (outs[count+2] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[count+2];
             	case 1:
             		outs[0] = GET_REGISTER(vdst & 0x0f);
             		outs[count+1] = GET_REGISTER_TAINT(vdst & 0x0f);
-                        if (outs[count+1] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[count+1];
             	default:
             		;
             	}
@@ -4368,23 +4364,23 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             	case 5:
             		outs[8] = GET_REGISTER(vsrc1 & 0x0f);
             		outs[9] = GET_REGISTER_TAINT(vsrc1 & 0x0f);
-                        if (outs[9] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[9];
             	case 4:
             		outs[6] = GET_REGISTER(vdst >> 12);
             		outs[7] = GET_REGISTER_TAINT(vdst >> 12);
-                        if (outs[7] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[7];
             	case 3:
             		outs[4] = GET_REGISTER((vdst & 0x0f00) >> 8);
             		outs[5] = GET_REGISTER_TAINT((vdst & 0x0f00) >> 8);
-                        if (outs[5] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[5];
             	case 2:
             		outs[2] = GET_REGISTER((vdst & 0x00f0) >> 4);
             		outs[3] = GET_REGISTER_TAINT((vdst & 0x00f0) >> 4);
-                        if (outs[3] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[3];
             	case 1:
             		outs[0] = GET_REGISTER(vdst & 0x0f);
             		outs[1] = GET_REGISTER_TAINT(vdst & 0x0f);
-                        if (outs[1] != TAINT_CLEAR) tainted = true;
+                        taintTag |= outs[1];
            	default:
             		;
               	}
@@ -4410,8 +4406,26 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
 #endif
         }
 #ifdef WITH_TAINT_TRACKING
-        if (tainted) {
-            ALOGW("TaintedCall: (%d) %s -> %s\n", self->threadId, curMethod->name, methodToCall->name);
+        if (taintTag != TAINT_CLEAR) {
+            ALOGW("TaintedCall: (%d) %s -> %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+                    self->threadId, curMethod->name, methodToCall->name,
+                    ((taintTag & 0x00000001) ? " Location" : ""),
+                    ((taintTag & 0x00000002) ? " Contacts" : ""),
+                    ((taintTag & 0x00000004) ? " Mic" : ""),
+                    ((taintTag & 0x00000008) ? " Number" : ""),
+                    ((taintTag & 0x00000010) ? " GPS" : ""),
+                    ((taintTag & 0x00000020) ? " NET" : ""),
+                    ((taintTag & 0x00000040) ? " LAST" : ""),
+                    ((taintTag & 0x00000080) ? " Camera" : ""),
+                    ((taintTag & 0x00000100) ? " Accel" : ""),
+                    ((taintTag & 0x00000200) ? " SMS" : ""),
+                    ((taintTag & 0x00000400) ? " IMEI" : ""),
+                    ((taintTag & 0x00000800) ? " IMSI" : ""),
+                    ((taintTag & 0x00001000) ? " ICCID" : ""),
+                    ((taintTag & 0x00002000) ? " DeviceSN" : ""),
+                    ((taintTag & 0x00004000) ? " Account" : ""),
+                    ((taintTag & 0x00008000) ? " History" : "")
+                    );
         }
 #endif
     }
