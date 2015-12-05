@@ -4271,6 +4271,7 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
         int i;
 #ifdef WITH_TAINT_TRACKING
         bool nativeTarget = dvmIsNativeMethod(methodToCall);
+        bool tainted = false;
 #endif
 
         /*
@@ -4292,6 +4293,9 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             	/* copy the taint tags (vsrc1 is the count) */
             	for (i = 0; i < vsrc1; i++) {
             		outs[vsrc1+1+i] = GET_REGISTER_TAINT(vdst+i);
+                        if (GET_REGISTER_TAINT(vdst+i) != TAINT_CLEAR) {
+                            tainted = true;
+                        }
             	}
             } else {
             	int slot = 0;
@@ -4299,6 +4303,9 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             		slot = i << 1;
             		outs[slot] = GET_REGISTER(vdst+i);
             		outs[slot+1] = GET_REGISTER_TAINT(vdst+i);
+                        if (GET_REGISTER_TAINT(vdst+i) != TAINT_CLEAR) {
+                            tainted = true;
+                        }
             	}
             	/* clear native hack (vsrc1 is the count)*/
             	outs[vsrc1<<1] = TAINT_CLEAR;
@@ -4334,18 +4341,23 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             	case 5:
             		outs[4] = GET_REGISTER(vsrc1 & 0x0f);
             		outs[count+5] = GET_REGISTER_TAINT(vsrc1 & 0x0f);
+                        if (outs[count+5] != TAINT_CLEAR) tainted = true;
             	case 4:
             		outs[3] = GET_REGISTER(vdst >> 12);
             		outs[count+4] = GET_REGISTER_TAINT(vdst >> 12);
+                        if (outs[count+4] != TAINT_CLEAR) tainted = true;
             	case 3:
             		outs[2] = GET_REGISTER((vdst & 0x0f00) >> 8);
             		outs[count+3] = GET_REGISTER_TAINT((vdst & 0x0f00) >> 8);
+                        if (outs[count+3] != TAINT_CLEAR) tainted = true;
             	case 2:
             		outs[1] = GET_REGISTER((vdst & 0x00f0) >> 4);
             		outs[count+2] = GET_REGISTER_TAINT((vdst & 0x00f0) >> 4);
+                        if (outs[count+2] != TAINT_CLEAR) tainted = true;
             	case 1:
             		outs[0] = GET_REGISTER(vdst & 0x0f);
             		outs[count+1] = GET_REGISTER_TAINT(vdst & 0x0f);
+                        if (outs[count+1] != TAINT_CLEAR) tainted = true;
             	default:
             		;
             	}
@@ -4356,18 +4368,23 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
             	case 5:
             		outs[8] = GET_REGISTER(vsrc1 & 0x0f);
             		outs[9] = GET_REGISTER_TAINT(vsrc1 & 0x0f);
+                        if (outs[9] != TAINT_CLEAR) tainted = true;
             	case 4:
             		outs[6] = GET_REGISTER(vdst >> 12);
             		outs[7] = GET_REGISTER_TAINT(vdst >> 12);
+                        if (outs[7] != TAINT_CLEAR) tainted = true;
             	case 3:
             		outs[4] = GET_REGISTER((vdst & 0x0f00) >> 8);
             		outs[5] = GET_REGISTER_TAINT((vdst & 0x0f00) >> 8);
+                        if (outs[5] != TAINT_CLEAR) tainted = true;
             	case 2:
             		outs[2] = GET_REGISTER((vdst & 0x00f0) >> 4);
             		outs[3] = GET_REGISTER_TAINT((vdst & 0x00f0) >> 4);
+                        if (outs[3] != TAINT_CLEAR) tainted = true;
             	case 1:
             		outs[0] = GET_REGISTER(vdst & 0x0f);
             		outs[1] = GET_REGISTER_TAINT(vdst & 0x0f);
+                        if (outs[1] != TAINT_CLEAR) tainted = true;
            	default:
             		;
               	}
@@ -4392,6 +4409,11 @@ GOTO_TARGET(invokeMethod, bool methodCallRange, const Method* _methodToCall,
 #endif /* WITH_TAINT_TRACKING */
 #endif
         }
+#ifdef WITH_TAINT_TRACKING
+        if (tainted) {
+            ALOGW("Method: %s\n", methodToCall->name);
+        }
+#endif
     }
 
     /*
